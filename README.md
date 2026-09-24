@@ -10,7 +10,7 @@ No Python, no cloud, no ONNX: both models run on native Rust engines built on
 [Avalonia 12](https://avaloniaui.net/), and playback / waveforms come from
 [OwnAudioSharp](https://github.com/ModernMube/OwnAudioSharp).
 
-![OwnMusicAI main window: the Simple create page on the left with style tags and lyrics, the song library on the right, the player bar at the bottom](docs/screenshot.png)
+![OwnMusicAI main window: the Simple page with the example style and lyrics filled in, and the song generating in the library with its live progress (synthesizing audio)](docs/screenshot.png)
 
 | | |
 |---|---|
