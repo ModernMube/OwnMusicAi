@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:OwnMusicAI.App.ViewModels"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             x:Class="OwnMusicAI.App.Views.SettingsPanel"
+             x:DataType="vm:MainWindowViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Grid.path">
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+        <Style Selector="Grid.path > Button">
+            <Setter Property="Grid.Column" Value="1"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="12">
+
+        <Border Classes="card">
+            <StackPanel>
+                <TextBlock Classes="h2" Text="Models" Margin="0,0,0,10"/>
+
+                <TextBlock Classes="label" Text="YUE2-3B FOLDER"/>
+                <Grid Classes="path" ColumnDefinitions="*,Auto">
+                    <TextBox Text="{Binding YuE2Dir}"/>
+                    <Button Command="{Binding BrowseFolderCommand}" CommandParameter="YuE2-3B" Content="…"/>
+                </Grid>
+
+                <TextBlock Classes="label" Text="YUE2-VAE FOLDER"/>
+                <Grid Classes="path" ColumnDefinitions="*,Auto">
+                    <TextBox Text="{Binding VaeDir}" PlaceholderText="{Binding VaeHint}"/>
+                    <Button Command="{Binding BrowseFolderCommand}" CommandParameter="YuE2-Vae" Content="…"/>
+                </Grid>
+
+                <TextBlock Classes="label" Text="SHEETSAGE2 FOLDER"/>
+                <Grid Classes="path" ColumnDefinitions="*,Auto">
+                    <TextBox Text="{Binding SheetSageDir}"/>
+                    <Button Command="{Binding BrowseFolderCommand}" CommandParameter="SheetSage2" Content="…"/>
+                </Grid>
+
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="MERT-v2-FullSong (for SheetSage2) and YuE2-Vae load from the Hugging Face cache (~/.cache/huggingface or HF_HOME)."/>
+
+                <Border Classes="card" Margin="0,12,0,0" Padding="12"
+                        IsVisible="{Binding MissingModels, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Missing models" FontWeight="SemiBold"/>
+                                <TextBlock Classes="muted" TextWrapping="Wrap" Text="{Binding MissingModels}"/>
+                                <TextBlock Classes="muted" TextWrapping="Wrap"
+                                           Text="huggingface.co/m-a-p, up to ~10.5 GB in total. A stopped download can be resumed."/>
+                            </StackPanel>
+                            <Panel Grid.Column="1" VerticalAlignment="Center">
+                                <Button Classes="cta" Command="{Binding DownloadModelsCommand}" IsVisible="{Binding !IsDownloading}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <mi:MaterialIcon Kind="Download" Width="18" Height="18"/>
+                                        <TextBlock Text="Download models"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding CancelDownloadCommand}" IsVisible="{Binding IsDownloading}" Content="Cancel"/>
+                            </Panel>
+                        </Grid>
+                        <ProgressBar Value="{Binding DownloadPercent}" Maximum="100" IsVisible="{Binding IsDownloading}"/>
+                        <TextBlock Classes="muted" Text="{Binding DownloadText}" TextWrapping="Wrap"
+                                   IsVisible="{Binding DownloadText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="error" Margin="0,8,0,0" Text="{Binding ModelProblem}"
+                           IsVisible="{Binding ModelProblem, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                <TextBlock Classes="error" Margin="0,4,0,0" Text="{Binding AnalysisProblem}"
+                           IsVisible="{Binding AnalysisProblem, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="h2" Text="Compute"/>
+                <Grid ColumnDefinitions="*,160">
+                    <TextBlock Text="Device" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Backends}" SelectedItem="{Binding Backend}" HorizontalAlignment="Stretch"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,160">
+                    <StackPanel Margin="0,0,12,0">
+                        <TextBlock Text="Precision"/>
+                        <TextBlock Classes="muted" TextWrapping="Wrap" Text="auto: f16 on Metal, bf16 on CUDA, f32 on CPU"/>
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding DTypes}" SelectedItem="{Binding DType}" HorizontalAlignment="Stretch"
+                              VerticalAlignment="Center"/>
+                </Grid>
+                <CheckBox IsChecked="{Binding KeepModelLoaded}">
+                    <StackPanel>
+                        <TextBlock Text="Keep YuE2 loaded between songs"/>
+                        <TextBlock Classes="muted" Text="saves ~16 s per song, holds ~7 GB of (V)RAM"/>
+                    </StackPanel>
+                </CheckBox>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+            <StackPanel>
+                <TextBlock Classes="h2" Text="Library" Margin="0,0,0,10"/>
+                <TextBlock Classes="label" Text="SONG FOLDER"/>
+                <Grid Classes="path" ColumnDefinitions="*,Auto">
+                    <TextBox Text="{Binding OutputDir}"/>
+                    <Button Command="{Binding BrowseFolderCommand}" CommandParameter="output" Content="…"/>
+                </Grid>
+                <Button Command="{Binding OpenLibraryFolderCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <mi:MaterialIcon Kind="FolderOpenOutline" Width="16" Height="16"/>
+                        <TextBlock Text="Open in file manager"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Command="{Binding RevertSettingsCommand}" Content="Revert"/>
+            <Button Classes="cta" Command="{Binding SaveSettingsCommand}" Content="Save settings" Padding="18,8"/>
+        </StackPanel>
+
+        <TextBlock Classes="muted" TextWrapping="Wrap" Margin="0,8,0,0"
+                   Text="The YuE2-3B and SheetSage2 weights are CC BY-NC 4.0: non-commercial use only. For covers, mind the rights of the reference recording too."/>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:OwnMusicAI.App.ViewModels"
+             xmlns:views="using:OwnMusicAI.App.Views"
+             x:Class="OwnMusicAI.App.Views.SimplePanel"
+             x:DataType="vm:MainWindowViewModel">
+
+    <StackPanel Spacing="12">
+        <TextBlock Classes="muted" TextWrapping="Wrap"
+                   Text="Describe the sound, add the lyrics and press Create. YuE2 first plans a chord score, then sings it. Every run gets a new seed."/>
+
+        <views:PromptEditor/>
+
+        <Border Classes="card">
+            <Grid ColumnDefinitions="*,190">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Classes="h2" Text="Length"/>
+                    <TextBlock Classes="muted" TextWrapping="Wrap"
+                               Text="Shorter is much faster. A full song takes 15 minutes to an hour on Metal."/>
+                </StackPanel>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding Lengths}" SelectedItem="{Binding SelectedLength}"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <views:MixSliders/>
+    </StackPanel>
+</UserControl>

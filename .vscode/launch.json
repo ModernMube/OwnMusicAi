@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run OwnMusicAI (Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build OwnMusicAI",
+            "program": "${workspaceFolder}/OwnMusicAI/src/OwnMusicAI.App/bin/Debug/net10.0/OwnMusicAI",
+            "args": [],
+            "cwd": "${workspaceFolder}/OwnMusicAI/src/OwnMusicAI.App/bin/Debug/net10.0",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "Run OwnMusicAI (Release)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build OwnMusicAI release",
+            "program": "${workspaceFolder}/OwnMusicAI/src/OwnMusicAI.App/bin/Release/net10.0/OwnMusicAI",
+            "args": [],
+            "cwd": "${workspaceFolder}/OwnMusicAI/src/OwnMusicAI.App/bin/Release/net10.0",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Attach to a running instance",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}

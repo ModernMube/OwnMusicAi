@@ -1,0 +1,17 @@
+* text=auto
+
+*.cs      text diff=csharp
+*.axaml   text
+*.csproj  text
+*.slnx    text
+*.rs      text diff=rust
+*.md      text
+*.sh      text eol=lf
+
+*.safetensors binary
+*.tiktoken    binary
+*.whl         binary
+*.dylib       binary
+*.so          binary
+*.dll         binary
+*.wav         binary

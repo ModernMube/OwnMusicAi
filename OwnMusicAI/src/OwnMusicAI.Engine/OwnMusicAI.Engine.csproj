@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>OwnMusicAI.Engine</RootNamespace>
+    <!-- the repo root, it holds both model projects -->
+    <ModelsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../'))</ModelsRoot>
+    <YueSources>$(ModelsRoot)YuE2-3B/yue2_csharp/</YueSources>
+    <SheetSageSources>$(ModelsRoot)SheetSage2/sheetsage2_csharp/SheetSage2.Transcription/</SheetSageSources>
+  </PropertyGroup>
+
+  <!--
+    Both model pipelines are compiled in from their own folders, not referenced: SheetSage2.Transcription
+    uses the OwnAudioSharp.Basic package, and next to the full OwnAudioSharp package the app needs for its
+    waveform display that would put every OwnaudioNET type in two assemblies.
+    The YuE2 console bits (Program, SongOptions, SongGenerator) stay out, SongPipeline replaces them.
+  -->
+  <ItemGroup>
+    <Compile Include="$(YueSources)*.cs"
+             Exclude="$(YueSources)Program.cs;$(YueSources)SongOptions.cs;$(YueSources)SongGenerator.cs"
+             Link="YuE2/%(Filename)%(Extension)" />
+    <Compile Include="$(SheetSageSources)**/*.cs"
+             Exclude="$(SheetSageSources)obj/**;$(SheetSageSources)bin/**"
+             Link="SheetSage2/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
+    <PackageReference Include="OwnAudioSharp" Version="4.0.8" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <UseYue2Engine>true</UseYue2Engine>
+    <UseSheetSageEngine>true</UseSheetSageEngine>
+  </PropertyGroup>
+  <Import Project="$(ModelsRoot)NativeEngines.targets" />
+
+</Project>

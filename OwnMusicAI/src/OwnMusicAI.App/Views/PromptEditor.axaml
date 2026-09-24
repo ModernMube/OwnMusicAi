@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:OwnMusicAI.App.ViewModels"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             x:Class="OwnMusicAI.App.Views.PromptEditor"
+             x:DataType="vm:MainWindowViewModel"
+             x:Name="Root">
+
+    <StackPanel Spacing="12">
+
+        <Border Classes="card">
+            <StackPanel>
+                <TextBlock Classes="label" Text="MUSIC STYLE"/>
+                <TextBox Text="{Binding Style}" AcceptsReturn="False" TextWrapping="Wrap" Height="76"
+                         PlaceholderText="city pop, groovy bass, electric guitar, female vocal, neon night"/>
+                <ItemsControl ItemsSource="{Binding StyleTags}" Margin="0,10,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Button Classes="chip" Content="{Binding}" CommandParameter="{Binding}"
+                                    Command="{Binding #Root.((vm:MainWindowViewModel)DataContext).AddStyleTagCommand}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <Button DockPanel.Dock="Right" Classes="ghost" Command="{Binding LoadLyricsCommand}"
+                            ToolTip.Tip="Load lyrics from a .txt, or style + lyrics + seed from an examples/*.json">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <mi:MaterialIcon Kind="FileDocumentOutline" Width="16" Height="16"/>
+                            <TextBlock Text="Load" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Classes="label" Text="LYRICS" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                </DockPanel>
+                <TextBox Text="{Binding Lyrics}" AcceptsReturn="True" TextWrapping="Wrap" Height="260" LostFocus="_lyricsLostFocus"
+                         PlaceholderText="[Verse]&#10;neon lights are calling&#10;&#10;[Chorus]&#10;tonight we don't sleep"/>
+                <ItemsControl ItemsSource="{Binding SectionTags}" Margin="0,10,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Button Classes="chip" Content="{Binding}" CommandParameter="{Binding}"
+                                    Command="{Binding #Root.((vm:MainWindowViewModel)DataContext).AddSectionCommand}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+            <StackPanel>
+                <TextBlock Classes="label" Text="TITLE"/>
+                <TextBox Text="{Binding SongTitle}" PlaceholderText="optional"/>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>

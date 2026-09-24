@@ -1,0 +1,149 @@
+name: Build native engines
+
+# Builds both Rust engines (yue2_engine, sheetsage2_engine) for every desktop RID and commits the
+# binaries back into <crate>/runtimes/<rid>/native/, where NativeEngines.targets picks them up.
+# macOS gets Metal, everything else is a CPU build (see README "CUDA builds" for NVIDIA GPUs).
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "OwnMusicAI/YuE2-3B/yue2_candle/src/**"
+      - "OwnMusicAI/YuE2-3B/yue2_candle/Cargo.*"
+      - "OwnMusicAI/SheetSage2/sheetsage2_candle/src/**"
+      - "OwnMusicAI/SheetSage2/sheetsage2_candle/Cargo.*"
+      - ".github/workflows/build-native.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "OwnMusicAI/YuE2-3B/yue2_candle/src/**"
+      - "OwnMusicAI/YuE2-3B/yue2_candle/Cargo.*"
+      - "OwnMusicAI/SheetSage2/sheetsage2_candle/src/**"
+      - "OwnMusicAI/SheetSage2/sheetsage2_candle/Cargo.*"
+      - ".github/workflows/build-native.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  rust-build:
+    name: Rust / ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: osx-arm64
+            os: macos-14
+            target: aarch64-apple-darwin
+            features: --features metal
+            prefix: lib
+            ext: dylib
+          - rid: linux-x64
+            os: ubuntu-22.04           # oldest runner = widest glibc compatibility
+            target: x86_64-unknown-linux-gnu
+            features: ""
+            prefix: lib
+            ext: so
+          - rid: linux-arm64
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            features: ""
+            prefix: lib
+            ext: so
+          - rid: win-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            features: ""
+            prefix: ""
+            ext: dll
+          - rid: win-arm64
+            os: windows-latest         # cross-compiled, the runner image ships the MSVC ARM64 tools
+            target: aarch64-pc-windows-msvc
+            features: ""
+            prefix: ""
+            ext: dll
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.rid }}
+          workspaces: |
+            OwnMusicAI/YuE2-3B/yue2_candle
+            OwnMusicAI/SheetSage2/sheetsage2_candle
+
+      - name: Build yue2_engine
+        working-directory: OwnMusicAI/YuE2-3B/yue2_candle
+        run: cargo build --release --locked --lib --target ${{ matrix.target }} ${{ matrix.features }}
+
+      - name: Build sheetsage2_engine
+        working-directory: OwnMusicAI/SheetSage2/sheetsage2_candle
+        run: cargo build --release --locked --lib --target ${{ matrix.target }} ${{ matrix.features }}
+
+      - name: Collect artifacts
+        run: |
+          for crate in YuE2-3B/yue2_candle:yue2_engine SheetSage2/sheetsage2_candle:sheetsage2_engine; do
+            dir="${crate%%:*}"; name="${crate##*:}"
+            file="${{ matrix.prefix }}${name}.${{ matrix.ext }}"
+            dst="out/OwnMusicAI/${dir}/runtimes/${{ matrix.rid }}/native"
+            mkdir -p "$dst"
+            cp "OwnMusicAI/${dir}/target/${{ matrix.target }}/release/${file}" "$dst/"
+          done
+          find out -type f -exec ls -la {} \;
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: out/
+          retention-days: 7
+
+  # Commit the fresh binaries so a plain `dotnet build` works right after cloning, no Rust needed
+  update-runtimes:
+    name: Update runtimes/
+    needs: rust-build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: .
+          merge-multiple: true
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add OwnMusicAI/YuE2-3B/yue2_candle/runtimes OwnMusicAI/SheetSage2/sheetsage2_candle/runtimes
+          if git diff --cached --quiet; then
+            echo "runtimes/ unchanged, nothing to commit."
+          else
+            git commit -m "chore(runtimes): update native engine binaries [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi

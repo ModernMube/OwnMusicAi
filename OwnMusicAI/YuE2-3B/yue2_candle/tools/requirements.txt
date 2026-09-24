@@ -1,0 +1,2 @@
+# Only for tools/make_reference.py (PyTorch reference dumps). Python 3.10-3.13.
+../../yue2_infer-0.1.5-py3-none-any.whl

@@ -1,0 +1,15 @@
+# Only for tools/make_reference.py and tools/transcribe_reference.py (PyTorch reference dumps).
+# Python 3.10-3.11. These also need the model's own Python implementation, which this checkout
+# no longer carries: restore it first with `git checkout -- '*.py' requirements.txt` in the repo
+# root, or re-download it from https://huggingface.co/m-a-p/SheetSage2.
+torch==2.8.0
+torchaudio==2.8.0
+transformers==4.45.2
+huggingface-hub==0.36.0
+safetensors==0.5.3
+numpy==1.24.3
+scipy==1.13.1
+mir_eval==0.8.2
+pretty_midi==0.2.10
+mido==1.3.3
+setuptools==78.1.1

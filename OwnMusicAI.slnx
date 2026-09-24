@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/models/">
+    <Project Path="OwnMusicAI/SheetSage2/sheetsage2_csharp/SheetSage2.Cli/SheetSage2.Cli.csproj" />
+    <Project Path="OwnMusicAI/SheetSage2/sheetsage2_csharp/SheetSage2.Transcription/SheetSage2.Transcription.csproj" />
+    <Project Path="OwnMusicAI/YuE2-3B/yue2_csharp/YuE2.Song.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="OwnMusicAI/src/OwnMusicAI.App/OwnMusicAI.App.csproj" />
+    <Project Path="OwnMusicAI/src/OwnMusicAI.Engine/OwnMusicAI.Engine.csproj" />
+  </Folder>
+</Solution>

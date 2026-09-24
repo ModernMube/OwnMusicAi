@@ -1,0 +1,39 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vs/
+.idea/
+.claude/
+*.user
+*.suo
+
+# .NET
+bin/
+obj/
+*.nupkg
+
+# Rust
+target/
+
+# Python tooling
+.venv/
+__pycache__/
+*.pyc
+
+# Hugging Face model files. The app downloads them (Settings > Download models),
+# only our own engine sources live in the model folders.
+OwnMusicAI/YuE2-3B/*
+!OwnMusicAI/YuE2-3B/yue2_candle/
+!OwnMusicAI/YuE2-3B/yue2_csharp/
+OwnMusicAI/SheetSage2/*
+!OwnMusicAI/SheetSage2/sheetsage2_candle/
+!OwnMusicAI/SheetSage2/sheetsage2_csharp/
+*.safetensors
+*.part
+
+# Local run output and parity reference dumps
+runs/
+reference/
+*.latents.f32
+*.state.json
+*.wav

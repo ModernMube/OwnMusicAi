@@ -1,0 +1,25 @@
+[package]
+name = "yue2_engine"
+version = "0.1.0"
+edition = "2024"
+description = "YuE2-3B inference primitives (AR, NAR velocity, VAE) on Candle, exported over a C ABI"
+license = "CC-BY-NC-4.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+candle-core = "0.11"
+candle-nn = "0.11"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[features]
+metal = ["candle-core/metal", "candle-nn/metal"]
+cuda = ["candle-core/cuda", "candle-nn/cuda"]
+accelerate = ["candle-core/accelerate", "candle-nn/accelerate"]
+
+[profile.release]
+debug = false
+lto = "thin"

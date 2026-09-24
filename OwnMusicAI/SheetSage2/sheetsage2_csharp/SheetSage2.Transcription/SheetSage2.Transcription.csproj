@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>SheetSage2</RootNamespace>
+    <UseSheetSageEngine>true</UseSheetSageEngine>
+  </PropertyGroup>
+
+  <!-- decoding + resampling (Symphonia/rubato inside the OwnAudio Rust engine) and SMF writing -->
+  <ItemGroup>
+    <PackageReference Include="OwnAudioSharp.Basic" Version="4.0.8" />
+    <!-- Basic has no MIDI in it, the SMF writer comes from here -->
+    <PackageReference Include="OwnAudioSharp.Midi" Version="4.0.8" />
+  </ItemGroup>
+
+  <!-- the Rust engine: local cargo build or the CI-built runtimes/ -->
+  <Import Project="$(MSBuildThisFileDirectory)../../../NativeEngines.targets" />
+
+</Project>

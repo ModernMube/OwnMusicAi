@@ -1,0 +1,151 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{DynamicResource BgBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    </Style>
+
+    <!-- text -->
+    <Style Selector="TextBlock.h1">
+        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+    <Style Selector="TextBlock.h2">
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="TextBlock.label">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+        <Setter Property="Margin" Value="2,0,0,6"/>
+    </Style>
+    <Style Selector="TextBlock.muted">
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="TextBlock.error">
+        <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <Style Selector="TextBlock.warn">
+        <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <!-- surfaces -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+    <Style Selector="Border.song">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="8"/>
+    </Style>
+    <Style Selector="Border.song:pointerover">
+        <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+
+    <!-- inputs -->
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="10,8"/>
+    </Style>
+    <Style Selector="TextBox.mono">
+        <Setter Property="FontFamily" Value="Menlo, Consolas, monospace"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="NumericUpDown, ComboBox">
+        <Setter Property="CornerRadius" Value="8"/>
+    </Style>
+
+    <!-- buttons -->
+    <Style Selector="Button.cta">
+        <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="CornerRadius" Value="24"/>
+        <Setter Property="Padding" Value="22,12"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.cta:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Opacity" Value="0.88"/>
+    </Style>
+    <Style Selector="Button.cta:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+    </Style>
+
+    <Style Selector="Button.ghost">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="CornerRadius" Value="20"/>
+    </Style>
+
+    <Style Selector="Button.chip">
+        <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Margin" Value="0,0,6,6"/>
+    </Style>
+
+    <Style Selector="Button.round">
+        <Setter Property="Width" Value="44"/>
+        <Setter Property="Height" Value="44"/>
+        <Setter Property="CornerRadius" Value="22"/>
+        <Setter Property="Background" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource BgBrush}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="Button.round:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="Foreground" Value="{DynamicResource BgBrush}"/>
+    </Style>
+
+    <!-- the Simple / Advanced / Settings switch -->
+    <Style Selector="RadioButton.tab">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="bg" Background="Transparent" CornerRadius="16" Padding="16,7">
+                    <ContentPresenter Content="{TemplateBinding Content}" FontWeight="SemiBold"
+                                      Foreground="{DynamicResource MutedBrush}" Name="cp"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.tab:checked /template/ Border#bg">
+        <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+    <Style Selector="RadioButton.tab:checked /template/ ContentPresenter#cp">
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    </Style>
+
+    <Style Selector="Expander">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <Style Selector="Slider">
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+    <Style Selector="ProgressBar">
+        <Setter Property="Foreground" Value="{DynamicResource AccentGradient}"/>
+        <Setter Property="MinHeight" Value="4"/>
+        <Setter Property="Height" Value="4"/>
+        <Setter Property="CornerRadius" Value="2"/>
+    </Style>
+
+</Styles>

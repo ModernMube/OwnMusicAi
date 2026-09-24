@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:OwnMusicAI.App.ViewModels"
+             xmlns:ctl="using:OwnMusicAI.App.Controls"
+             xmlns:viz="using:OwnaudioNET.Visualization"
+             xmlns:i="using:Avalonia.Xaml.Interactivity"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             x:Class="OwnMusicAI.App.Views.PlayerBar"
+             x:DataType="vm:PlayerViewModel">
+
+    <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0"
+            Padding="16,10">
+        <Grid ColumnDefinitions="250,Auto,*,Auto,170" >
+
+            <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Classes="muted" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Classes="error" Text="{Binding Error}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Classes="round" Command="{Binding PlayPauseCommand}" IsEnabled="{Binding HasTrack}">
+                    <mi:MaterialIcon Kind="{Binding PlayIcon}" Width="24" Height="24"/>
+                </Button>
+                <Button Classes="ghost" Command="{Binding StopCommand}" IsEnabled="{Binding HasTrack}" ToolTip.Tip="Stop">
+                    <mi:MaterialIcon Kind="Stop" Width="22" Height="22"/>
+                </Button>
+            </StackPanel>
+
+            <Border Grid.Column="2" Height="52" Margin="12,0" CornerRadius="8" ClipToBounds="True"
+                    Background="{DynamicResource InputBrush}">
+                <viz:WaveAvaloniaDisplay PlaybackPosition="{Binding NormalizedPosition}"
+                                         WaveformBrush="{DynamicResource WaveBrush}"
+                                         PlaybackPositionBrush="{DynamicResource AccentBrush}">
+                    <i:Interaction.Behaviors>
+                        <ctl:WaveformDataBehavior AudioData="{Binding WaveformData}"
+                                                  TotalDurationSeconds="{Binding Duration}"
+                                                  SeekCommand="{Binding SeekCommand}"/>
+                    </i:Interaction.Behaviors>
+                </viz:WaveAvaloniaDisplay>
+            </Border>
+
+            <TextBlock Grid.Column="3" Text="{Binding PositionText}" VerticalAlignment="Center" FontSize="12"
+                       Foreground="{DynamicResource MutedBrush}" Margin="0,0,12,0"/>
+
+            <DockPanel Grid.Column="4" VerticalAlignment="Center">
+                <mi:MaterialIcon DockPanel.Dock="Left" Kind="VolumeHigh" Width="18" Height="18" Margin="0,0,6,0"
+                                 Foreground="{DynamicResource MutedBrush}"/>
+                <Slider Value="{Binding Volume}" Minimum="0" Maximum="100"/>
+            </DockPanel>
+        </Grid>
+    </Border>
+</UserControl>

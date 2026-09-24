@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:OwnMusicAI.App.ViewModels"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             x:Class="OwnMusicAI.App.Views.MixSliders"
+             x:DataType="vm:MainWindowViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Grid.mix">
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+        <Style Selector="Grid.mix Slider">
+            <Setter Property="Grid.Column" Value="1"/>
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="TickFrequency" Value="5"/>
+            <Setter Property="IsSnapToTickEnabled" Value="True"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Grid.mix TextBlock.value">
+            <Setter Property="Grid.Column" Value="2"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="card">
+        <StackPanel Spacing="4">
+            <DockPanel Margin="0,0,0,4">
+                <Button DockPanel.Dock="Right" Classes="ghost" Command="{Binding ResetMixCommand}" ToolTip.Tip="Back to the model defaults">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <mi:MaterialIcon Kind="Replay" Width="16" Height="16"/>
+                        <TextBlock Text="Defaults" FontSize="12"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Classes="h2" Text="Sound" VerticalAlignment="Center"/>
+            </DockPanel>
+
+            <Grid Classes="mix" ColumnDefinitions="120,*,48"
+                  ToolTip.Tip="Low = safe, predictable; high = unusual, experimental. Sets temperature, top-p and top-k.">
+                <TextBlock Text="Weirdness" VerticalAlignment="Center"/>
+                <Slider Value="{Binding Weirdness}"/>
+                <TextBlock Classes="value" Text="{Binding Weirdness, StringFormat={}{0:0}%}"/>
+            </Grid>
+            <TextBlock Classes="muted" Text="{Binding WeirdnessHint}" Margin="120,0,48,4"/>
+
+            <Grid Classes="mix" ColumnDefinitions="120,*,48"
+                  ToolTip.Tip="How strictly the song follows the style and lyrics (CFG). Above 0 every music token runs twice.">
+                <TextBlock Text="Style influence" VerticalAlignment="Center"/>
+                <Slider Value="{Binding StyleInfluence}"/>
+                <TextBlock Classes="value" Text="{Binding StyleInfluence, StringFormat={}{0:0}%}"/>
+            </Grid>
+            <TextBlock Classes="muted" Text="{Binding StyleHint}" Margin="120,0,48,4"/>
+
+            <Grid Classes="mix" ColumnDefinitions="120,*,48"
+                  ToolTip.Tip="Low = repeating motifs, hooks; high = always new material. Sets the repetition penalty.">
+                <TextBlock Text="Variety" VerticalAlignment="Center"/>
+                <Slider Value="{Binding Variety}"/>
+                <TextBlock Classes="value" Text="{Binding Variety, StringFormat={}{0:0}%}"/>
+            </Grid>
+            <TextBlock Classes="muted" Text="{Binding VarietyHint}" Margin="120,0,48,4"/>
+
+            <Border Height="1" Background="{DynamicResource LineBrush}" Margin="0,6"/>
+
+            <DockPanel>
+                <Panel DockPanel.Dock="Left" Margin="0,0,8,0" VerticalAlignment="Top">
+                    <mi:MaterialIcon Kind="MemoryArrowDown" Width="16" Height="16" Foreground="{DynamicResource OkBrush}"
+                                     IsVisible="{Binding CostIsLight}"/>
+                </Panel>
+                <TextBlock Classes="muted" Text="{Binding CostSummary}" TextWrapping="Wrap"/>
+            </DockPanel>
+
+            <ItemsControl ItemsSource="{Binding CostWarnings}" IsVisible="{Binding CostIsHeavy}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <DockPanel Margin="0,2">
+                            <mi:MaterialIcon DockPanel.Dock="Left" Kind="AlertOutline" Width="16" Height="16" Margin="0,0,8,0"
+                                             VerticalAlignment="Top" Foreground="{DynamicResource WarnBrush}"/>
+                            <TextBlock Classes="warn" Text="{Binding}"/>
+                        </DockPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ItemsControl ItemsSource="{Binding CostWarnings}" IsVisible="{Binding CostIsTooMuch}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <DockPanel Margin="0,2">
+                            <mi:MaterialIcon DockPanel.Dock="Left" Kind="AlertOctagonOutline" Width="16" Height="16" Margin="0,0,8,0"
+                                             VerticalAlignment="Top" Foreground="{DynamicResource ErrorBrush}"/>
+                            <TextBlock Classes="error" Text="{Binding}"/>
+                        </DockPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>

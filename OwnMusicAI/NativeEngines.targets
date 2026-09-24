@@ -1,0 +1,40 @@
+<Project>
+
+  <!--
+    Puts the Rust engines next to the build output. Projects opt in with UseYue2Engine / UseSheetSageEngine.
+    A local `cargo build release` wins so Rust changes show up right away, but only for the host RID;
+    otherwise it's the binary CI built for that RID, committed under <crate>/runtimes/<rid>/native/.
+  -->
+  <PropertyGroup>
+    <NativeRid Condition="'$(NativeRid)' == ''">$(RuntimeIdentifier)</NativeRid>
+    <NativeRid Condition="'$(NativeRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</NativeRid>
+
+    <YueCrateDir>$(MSBuildThisFileDirectory)YuE2-3B/yue2_candle/</YueCrateDir>
+    <YueEngineDir>$(YueCrateDir)target/release/</YueEngineDir>
+    <YueEngineDir Condition="'$(NativeRid)' != '$(NETCoreSdkRuntimeIdentifier)' Or (!Exists('$(YueEngineDir)libyue2_engine.dylib') And !Exists('$(YueEngineDir)libyue2_engine.so') And !Exists('$(YueEngineDir)yue2_engine.dll'))">$(YueCrateDir)runtimes/$(NativeRid)/native/</YueEngineDir>
+
+    <SheetSageCrateDir>$(MSBuildThisFileDirectory)SheetSage2/sheetsage2_candle/</SheetSageCrateDir>
+    <SheetSageEngineDir>$(SheetSageCrateDir)target/release/</SheetSageEngineDir>
+    <SheetSageEngineDir Condition="'$(NativeRid)' != '$(NETCoreSdkRuntimeIdentifier)' Or (!Exists('$(SheetSageEngineDir)libsheetsage2_engine.dylib') And !Exists('$(SheetSageEngineDir)libsheetsage2_engine.so') And !Exists('$(SheetSageEngineDir)sheetsage2_engine.dll'))">$(SheetSageCrateDir)runtimes/$(NativeRid)/native/</SheetSageEngineDir>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseYue2Engine)' == 'true'">
+    <None Include="$(YueEngineDir)libyue2_engine.dylib" Condition="Exists('$(YueEngineDir)libyue2_engine.dylib')" Link="libyue2_engine.dylib" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(YueEngineDir)libyue2_engine.so" Condition="Exists('$(YueEngineDir)libyue2_engine.so')" Link="libyue2_engine.so" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(YueEngineDir)yue2_engine.dll" Condition="Exists('$(YueEngineDir)yue2_engine.dll')" Link="yue2_engine.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseSheetSageEngine)' == 'true'">
+    <None Include="$(SheetSageEngineDir)libsheetsage2_engine.dylib" Condition="Exists('$(SheetSageEngineDir)libsheetsage2_engine.dylib')" Link="libsheetsage2_engine.dylib" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(SheetSageEngineDir)libsheetsage2_engine.so" Condition="Exists('$(SheetSageEngineDir)libsheetsage2_engine.so')" Link="libsheetsage2_engine.so" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(SheetSageEngineDir)sheetsage2_engine.dll" Condition="Exists('$(SheetSageEngineDir)sheetsage2_engine.dll')" Link="sheetsage2_engine.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="WarnMissingEngines" BeforeTargets="Build">
+    <Warning Condition="'$(UseYue2Engine)' == 'true' And !Exists('$(YueEngineDir)libyue2_engine.dylib') And !Exists('$(YueEngineDir)libyue2_engine.so') And !Exists('$(YueEngineDir)yue2_engine.dll')"
+             Text="libyue2_engine for $(NativeRid) not found - run `cargo build --release` in YuE2-3B/yue2_candle, or pull the CI-built runtimes/" />
+    <Warning Condition="'$(UseSheetSageEngine)' == 'true' And !Exists('$(SheetSageEngineDir)libsheetsage2_engine.dylib') And !Exists('$(SheetSageEngineDir)libsheetsage2_engine.so') And !Exists('$(SheetSageEngineDir)sheetsage2_engine.dll')"
+             Text="libsheetsage2_engine for $(NativeRid) not found - run `cargo build --release` in SheetSage2/sheetsage2_candle, or pull the CI-built runtimes/" />
+  </Target>
+
+</Project>

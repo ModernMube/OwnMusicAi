@@ -1,0 +1,263 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:OwnMusicAI.App.ViewModels"
+             xmlns:views="using:OwnMusicAI.App.Views"
+             xmlns:ctl="using:OwnMusicAI.App.Controls"
+             xmlns:viz="using:OwnaudioNET.Visualization"
+             xmlns:i="using:Avalonia.Xaml.Interactivity"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             x:Class="OwnMusicAI.App.Views.AdvancedPanel"
+             x:DataType="vm:MainWindowViewModel">
+
+    <UserControl.Styles>
+        <!-- one knob per row: name + hint on the left, value box on the right -->
+        <Style Selector="Grid.param">
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+        <Style Selector="Grid.param NumericUpDown">
+            <Setter Property="Grid.Column" Value="1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Grid.param > StackPanel">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+        <Style Selector="Grid.param TextBlock.muted">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="TextBlock.stat">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="12">
+
+        <!-- reference song -->
+        <Border Classes="card">
+            <StackPanel Spacing="10">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Classes="ghost" Command="{Binding ClearReferenceCommand}"
+                            IsVisible="{Binding HasReference}" ToolTip.Tip="Remove the reference">
+                        <mi:MaterialIcon Kind="Close" Width="16" Height="16"/>
+                    </Button>
+                    <StackPanel>
+                        <TextBlock Classes="h2" Text="Reference song"/>
+                        <TextBlock Classes="muted" TextWrapping="Wrap"
+                                   Text="SheetSage2 writes a score from a recording. YuE2 follows it with your style and lyrics."/>
+                    </StackPanel>
+                </DockPanel>
+
+                <Grid ColumnDefinitions="Auto,*,Auto" >
+                    <Button Command="{Binding PickReferenceCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <mi:MaterialIcon Kind="FileMusicOutline" Width="18" Height="18"/>
+                            <TextBlock Text="Choose audio file…"/>
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ReferenceName}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Classes="muted" Text="{Binding ReferenceInfo}"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="ghost" Command="{Binding PreviewReferenceCommand}"
+                            IsVisible="{Binding HasReference}" ToolTip.Tip="Play in the player">
+                        <mi:MaterialIcon Kind="Play" Width="20" Height="20"/>
+                    </Button>
+                </Grid>
+
+                <Border Height="56" CornerRadius="8" Background="{DynamicResource InputBrush}" ClipToBounds="True"
+                        IsVisible="{Binding HasReference}">
+                    <viz:WaveAvaloniaDisplay WaveformBrush="{DynamicResource AccentBrush}" PlaybackPositionBrush="Transparent">
+                        <i:Interaction.Behaviors>
+                            <ctl:WaveformDataBehavior AudioData="{Binding ReferenceWaveform}"/>
+                        </i:Interaction.Behaviors>
+                    </viz:WaveAvaloniaDisplay>
+                </Border>
+
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasReference}">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Classes="muted" Text="Analyze only the first" VerticalAlignment="Center"/>
+                        <NumericUpDown Value="{Binding AnalyzeSeconds}" Minimum="0" Maximum="1200" Increment="30"
+                                       FormatString="0" Width="110"/>
+                        <TextBlock Classes="muted" Text="s (0 = all of it)" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Panel Grid.Column="1">
+                        <Button Command="{Binding AnalyzeCommand}" IsVisible="{Binding !IsAnalyzing}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <mi:MaterialIcon Kind="Waveform" Width="18" Height="18"/>
+                                <TextBlock Text="Analyze"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding CancelAnalysisCommand}" IsVisible="{Binding IsAnalyzing}" Content="Cancel"/>
+                    </Panel>
+                </Grid>
+
+                <StackPanel Spacing="4" IsVisible="{Binding IsAnalyzing}">
+                    <ProgressBar Value="{Binding AnalysisProgress}" Maximum="100"/>
+                </StackPanel>
+                <TextBlock Classes="muted" Text="{Binding AnalysisStage}" TextWrapping="Wrap"
+                           IsVisible="{Binding AnalysisStage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <StackPanel Spacing="8" IsVisible="{Binding HasAnalysis}">
+                    <UniformGrid Columns="4">
+                        <StackPanel><TextBlock Classes="label" Text="KEY"/><TextBlock Classes="stat" Text="{Binding KeyText}"/></StackPanel>
+                        <StackPanel><TextBlock Classes="label" Text="TEMPO"/><TextBlock Classes="stat" Text="{Binding TempoText}"/></StackPanel>
+                        <StackPanel><TextBlock Classes="label" Text="METER"/><TextBlock Classes="stat" Text="{Binding MeterText}"/></StackPanel>
+                        <StackPanel><TextBlock Classes="label" Text="BARS"/><TextBlock Classes="stat" Text="{Binding MeasuresText}"/></StackPanel>
+                    </UniformGrid>
+                    <TextBlock Classes="label" Text="CHORDS"/>
+                    <SelectableTextBlock Text="{Binding ChordsText}" TextWrapping="Wrap" FontSize="12"/>
+                    <TextBlock Classes="label" Text="SECTIONS"/>
+                    <SelectableTextBlock Text="{Binding SectionsText}" TextWrapping="Wrap" FontSize="12"/>
+                </StackPanel>
+
+                <TextBlock Classes="error" Text="{Binding AnalysisProblem}"
+                           IsVisible="{Binding AnalysisProblem, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- score -->
+        <Border Classes="card">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="h2" Text="Score"/>
+                <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" HorizontalAlignment="Stretch"/>
+                <StackPanel Spacing="10" IsVisible="{Binding UsesScore}">
+                    <StackPanel Spacing="2">
+                        <RadioButton GroupName="score" IsChecked="{Binding IsScorePlanned}" Content="YuE2 writes it"/>
+                        <RadioButton GroupName="score" IsChecked="{Binding IsScoreFromReference}" Content="From the reference song"
+                                     IsEnabled="{Binding HasReference}"/>
+                        <RadioButton GroupName="score" IsChecked="{Binding IsScoreCustom}" Content="Custom score (ABC below)"/>
+                    </StackPanel>
+                    <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsScoreFromReference}"
+                               Text="Feel free to edit the transcribed score. Skip Analyze and it is made right before the song."/>
+                    <TextBox Classes="mono" Text="{Binding AbcText}" AcceptsReturn="True" Height="200"
+                             TextWrapping="NoWrap" PlaceholderText="X:1&#10;M:4/4&#10;L:1/8&#10;K:C&#10;..."
+                             IsVisible="{Binding !IsScorePlanned}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Command="{Binding LoadAbcCommand}" Content="Load .abc…"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <views:PromptEditor/>
+
+        <views:MixSliders/>
+
+        <!-- knobs -->
+        <Border Classes="card">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,8">
+                    <Button DockPanel.Dock="Right" Classes="ghost" Command="{Binding ResetParametersCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <mi:MaterialIcon Kind="Replay" Width="16" Height="16"/>
+                            <TextBlock Text="Defaults" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Classes="h2" Text="Parameters" VerticalAlignment="Center"/>
+                </DockPanel>
+
+                <Expander Header="Generation" IsExpanded="True">
+                    <StackPanel>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel>
+                                <TextBlock Text="Seed"/>
+                                <CheckBox IsChecked="{Binding RandomSeed}" Content="new seed on every run" FontSize="12"/>
+                            </StackPanel>
+                            <DockPanel Grid.Column="1">
+                                <Button DockPanel.Dock="Right" Classes="ghost" Command="{Binding RollSeedCommand}" ToolTip.Tip="Roll a new seed">
+                                    <mi:MaterialIcon Kind="DiceMultiple" Width="18" Height="18"/>
+                                </Button>
+                                <NumericUpDown Value="{Binding Seed}" Minimum="0" Maximum="9999999999" FormatString="0"
+                                               ShowButtonSpinner="False" IsEnabled="{Binding !RandomSeed}"/>
+                            </DockPanel>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel>
+                                <TextBlock Text="Prompt adherence (CFG)"/>
+                                <TextBlock Classes="muted" Text="set by the Style influence slider"/>
+                                <CheckBox IsChecked="{Binding CfgAuto}" Content="auto (1.0; 1.01 without a score)" FontSize="12"/>
+                            </StackPanel>
+                            <NumericUpDown Value="{Binding Cfg}" Minimum="1" Maximum="5" Increment="0.1" FormatString="0.00"
+                                           IsEnabled="{Binding !CfgAuto}"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel>
+                                <TextBlock Text="Max. length (s)"/>
+                                <TextBlock Classes="muted" Text="0 = until the song ends; 25 tokens per second"/>
+                            </StackPanel>
+                            <NumericUpDown Value="{Binding MaxSeconds}" Minimum="0" Maximum="360" Increment="10" FormatString="0"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel>
+                                <TextBlock Text="Max. score tokens"/>
+                                <TextBlock Classes="muted" Text="0 = 4096; upper limit of the planned score"/>
+                            </StackPanel>
+                            <NumericUpDown Value="{Binding MaxAbcTokens}" Minimum="0" Maximum="4096" Increment="128" FormatString="0"/>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+
+                <Expander Header="Music sampling">
+                    <StackPanel>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Temperature"/><TextBlock Classes="muted" Text="higher = wilder"/></StackPanel>
+                            <NumericUpDown Value="{Binding MusicTemperature}" Minimum="0" Maximum="2" Increment="0.05" FormatString="0.00"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Top-p"/></StackPanel>
+                            <NumericUpDown Value="{Binding MusicTopP}" Minimum="0.05" Maximum="1" Increment="0.01" FormatString="0.00"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Top-k"/></StackPanel>
+                            <NumericUpDown Value="{Binding MusicTopK}" Minimum="1" Maximum="2000" Increment="10" FormatString="0"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Repetition penalty"/><TextBlock Classes="muted" Text="over the last 50 tokens"/></StackPanel>
+                            <NumericUpDown Value="{Binding MusicRepetition}" Minimum="1" Maximum="2" Increment="0.01" FormatString="0.000"/>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+
+                <Expander Header="Score sampling">
+                    <StackPanel>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Temperature"/></StackPanel>
+                            <NumericUpDown Value="{Binding ScoreTemperature}" Minimum="0" Maximum="2" Increment="0.05" FormatString="0.00"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Top-p"/></StackPanel>
+                            <NumericUpDown Value="{Binding ScoreTopP}" Minimum="0.05" Maximum="1" Increment="0.01" FormatString="0.00"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Top-k"/></StackPanel>
+                            <NumericUpDown Value="{Binding ScoreTopK}" Minimum="1" Maximum="500" Increment="5" FormatString="0"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Repetition penalty"/><TextBlock Classes="muted" Text="over the last 100 tokens"/></StackPanel>
+                            <NumericUpDown Value="{Binding ScoreRepetition}" Minimum="1" Maximum="2" Increment="0.005" FormatString="0.000"/>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+
+                <Expander Header="Audio synthesis">
+                    <StackPanel>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Flow-matching steps"/><TextBlock Classes="muted" Text="16 = twice as fast, 48 = smoother"/></StackPanel>
+                            <NumericUpDown Value="{Binding OdeSteps}" Minimum="4" Maximum="96" Increment="4" FormatString="0"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="Acoustic context"/><TextBlock Classes="muted" Text="smaller = shorter chunks, less memory"/></StackPanel>
+                            <NumericUpDown Value="{Binding ContextTokens}" Minimum="2048" Maximum="24576" Increment="1024" FormatString="0"/>
+                        </Grid>
+                        <Grid Classes="param" ColumnDefinitions="*,150">
+                            <StackPanel><TextBlock Text="VAE tile (frames)"/><TextBlock Classes="muted" Text="smaller = less memory"/></StackPanel>
+                            <NumericUpDown Value="{Binding VaeTile}" Minimum="32" Maximum="1024" Increment="32" FormatString="0"/>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>

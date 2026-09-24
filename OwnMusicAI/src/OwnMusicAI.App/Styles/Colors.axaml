@@ -1,0 +1,32 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Fluent's own accent (slider, checkbox, radio, progress) goes orange too -->
+    <Color x:Key="SystemAccentColor">#FF7040</Color>
+    <Color x:Key="SystemAccentColorDark1">#E85F32</Color>
+    <Color x:Key="SystemAccentColorDark2">#C94E28</Color>
+    <Color x:Key="SystemAccentColorDark3">#A63F20</Color>
+    <Color x:Key="SystemAccentColorLight1">#FF8A5E</Color>
+    <Color x:Key="SystemAccentColorLight2">#FFA47F</Color>
+    <Color x:Key="SystemAccentColorLight3">#FFBEA2</Color>
+
+    <SolidColorBrush x:Key="BgBrush" Color="#0B0B0F"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#131318"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#1A1A21"/>
+    <SolidColorBrush x:Key="CardHoverBrush" Color="#23232C"/>
+    <SolidColorBrush x:Key="InputBrush" Color="#101014"/>
+    <SolidColorBrush x:Key="LineBrush" Color="#2A2A34"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#F2F2F5"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#8E8E9C"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF7040"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="#FF5A6A"/>
+    <SolidColorBrush x:Key="WarnBrush" Color="#FFB547"/>
+    <SolidColorBrush x:Key="OkBrush" Color="#4ED6A0"/>
+    <SolidColorBrush x:Key="WaveBrush" Color="#B8B8C6"/>
+
+    <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#FF8A3D"/>
+        <GradientStop Offset="1" Color="#E0337E"/>
+    </LinearGradientBrush>
+
+</ResourceDictionary>
