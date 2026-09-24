@@ -226,7 +226,7 @@ dotnet build OwnMusicAI.slnx -c Release
 ### Native engines: CI-built by default, local cargo build when you work on them
 
 The GitHub Actions workflow [`build-native.yml`](.github/workflows/build-native.yml) builds both Rust
-engines whenever their sources change on `main`, and commits the binaries back into the repository:
+engines whenever their sources change on `master`, and commits the binaries back into the repository:
 
 | RID | Runner | Backend | Files |
 |---|---|---|---|
@@ -447,7 +447,7 @@ See the [YuE2.Song](OwnMusicAI/YuE2-3B/yue2_csharp/README.md) and
 
 | Symptom | Fix |
 |---|---|
-| *"libyue2_engine is missing next to the app"* | Pull the latest `main` (CI-built `runtimes/`), or run `cargo build --release` in the engine folder, then rebuild the app. |
+| *"libyue2_engine is missing next to the app"* | Pull the latest `master` (CI-built `runtimes/`), or run `cargo build --release` in the engine folder, then rebuild the app. |
 | CUDA device fails to start | The engine was built without `--features cuda`, or the CUDA runtime libraries / driver are missing – see [CUDA builds](#cuda-builds-linux-and-windows). |
 | Settings lists missing models | Press **Download models**, or use the `hf download` commands above. |
 | Red memory warning under the sliders | The song would not fit; shorten it, lower Style influence, or lower the acoustic context / VAE tile in Advanced. |

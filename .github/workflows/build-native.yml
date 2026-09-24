@@ -6,7 +6,7 @@ name: Build native engines
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
     paths:
       - "OwnMusicAI/YuE2-3B/yue2_candle/src/**"
       - "OwnMusicAI/YuE2-3B/yue2_candle/Cargo.*"
@@ -14,7 +14,7 @@ on:
       - "OwnMusicAI/SheetSage2/sheetsage2_candle/Cargo.*"
       - ".github/workflows/build-native.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
     paths:
       - "OwnMusicAI/YuE2-3B/yue2_candle/src/**"
       - "OwnMusicAI/YuE2-3B/yue2_candle/Cargo.*"
