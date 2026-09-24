@@ -32,9 +32,6 @@ public sealed class AppSettings
 
     static string _file => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OwnMusicAI", "settings.json");
 
-    //the app was called SunoLocal before, its settings (and song folder) still count
-    static string _legacyFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SunoLocal", "settings.json");
-
     public static JsonSerializerOptions Json => _json;
 
     /// <summary>
@@ -45,8 +42,7 @@ public sealed class AppSettings
         AppSettings? _settings = null;
         try
         {
-            string _path = File.Exists(_file) ? _file : _legacyFile;
-            if (File.Exists(_path)) _settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_path), _json);
+            if (File.Exists(_file)) _settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_file), _json);
         }
         catch (JsonException) { }
         _settings ??= new AppSettings();
@@ -55,7 +51,7 @@ public sealed class AppSettings
         if (_settings.YuE2Dir.Length == 0) _settings.YuE2Dir = _found.YuE2Dir;
         if (_settings.SheetSageDir.Length == 0) _settings.SheetSageDir = _found.SheetSageDir;
         if(_settings.OutputDir.Length == 0)
-            _settings.OutputDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "OwnMusicAI");
+            _settings.OutputDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "OwnMusicLocal");
         return _settings;
     }
 

@@ -84,6 +84,8 @@ public partial class MainWindowViewModel
             case "SheetSage2": SheetSageDir = _dir; break;
             default: OutputDir = _dir; break;
         }
+        //a picked song folder counts right away, no Save needed
+        if (which == "output") SaveSettings();
     }
 
     [RelayCommand]

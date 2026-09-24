@@ -390,7 +390,7 @@ Things worth knowing when you touch this code:
 
 ## Song library format
 
-Every song is a folder under the song folder (`~/Music/OwnMusicAI` by default, configurable):
+Every song is a folder under the song folder (`~/Music/OwnMusicLocal` by default, configurable):
 
 ```
 20260924-213045-neon-nights/
