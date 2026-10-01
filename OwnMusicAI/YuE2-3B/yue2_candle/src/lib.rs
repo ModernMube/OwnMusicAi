@@ -5,6 +5,7 @@
 mod config;
 mod error;
 pub mod ffi;
+mod gemv;
 mod model;
 mod vae;
 

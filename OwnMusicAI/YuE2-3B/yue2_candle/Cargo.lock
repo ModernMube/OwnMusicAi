@@ -2049,7 +2049,9 @@ name = "yue2_engine"
 version = "0.1.0"
 dependencies = [
  "candle-core",
+ "candle-metal-kernels",
  "candle-nn",
+ "objc2-metal",
  "serde",
  "serde_json",
  "thiserror 2.0.20",

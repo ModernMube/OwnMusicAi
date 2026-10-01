@@ -23,7 +23,8 @@ internal static class AcousticSolver
         int _size = Math.Min((context - prefix.Count - 3) / 2, Protocol.Context);
         if (_size < 1) throw new InvalidOperationException($"prefix of {prefix.Count} tokens leaves no room in a {context} context");
         int _chunks = (_frames + _size - 1) / _size;
-        var _scratch = new float[engine.Info.VocabSize];
+        //only the KV cache matters here, one logit is enough
+        var _scratch = new float[1];
 
         int _chunk = 0;
         for (int a = 0; a < _frames; a += _size)

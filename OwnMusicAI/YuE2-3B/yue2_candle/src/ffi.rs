@@ -182,7 +182,8 @@ pub unsafe extern "C" fn yue2_cache_len(cache: *const Cache) -> i32 {
     unsafe { cache.as_ref() }.map_or(-1, |c| c.len() as i32)
 }
 
-/// AR step: appends `count` tokens to `cache`, last-position logits land in `logits` (vocab_size).
+/// AR step: appends `count` tokens to `cache`, the last position's logits of ids
+/// `logits_first..logits_first + logits_len` land in `logits`.
 ///
 /// # Safety
 /// All pointers valid for the given lengths; `cache` not shared with another running call.
@@ -192,11 +193,12 @@ pub unsafe extern "C" fn yue2_ar_forward(
     cache: *mut Cache,
     tokens: *const u32,
     count: i32,
+    logits_first: i32,
     logits: *mut f32,
     logits_len: i32,
 ) -> i32 {
     guarded(|| {
-        if tokens.is_null() || logits.is_null() || count <= 0 || logits_len <= 0 {
+        if tokens.is_null() || logits.is_null() || count <= 0 || logits_first < 0 || logits_len <= 0 {
             return Err(invalid("ar_forward got an empty buffer"));
         }
         // SAFETY: caller contract, lengths checked positive above.
@@ -208,7 +210,49 @@ pub unsafe extern "C" fn yue2_ar_forward(
                 slice::from_raw_parts_mut(logits, logits_len as usize),
             )
         };
-        engine.model.forward(cache, tokens, logits)
+        engine.model.forward(cache, tokens, logits_first as usize, logits)
+    })
+}
+
+/// Batched decode: `tokens[i]` goes into `caches[i]` (CFG positive + negative in one pass).
+/// `logits` holds `count` rows of `logits_len / count` floats, each starting at id `logits_first`.
+///
+/// # Safety
+/// `caches` and `tokens` valid for `count` entries, every cache distinct and not used by
+/// another running call, `logits` valid for `logits_len` floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yue2_ar_decode(
+    engine: *const Engine,
+    caches: *const *mut Cache,
+    tokens: *const u32,
+    count: i32,
+    logits_first: i32,
+    logits: *mut f32,
+    logits_len: i32,
+) -> i32 {
+    guarded(|| {
+        if caches.is_null() || tokens.is_null() || logits.is_null() || count <= 0 || logits_first < 0 || logits_len <= 0 {
+            return Err(invalid("ar_decode got an empty buffer"));
+        }
+        // SAFETY: caller contract, lengths checked positive above.
+        let (engine, handles, tokens, logits) = unsafe {
+            (
+                engine.as_ref().ok_or_else(|| invalid("engine is null"))?,
+                slice::from_raw_parts(caches, count as usize),
+                slice::from_raw_parts(tokens, count as usize),
+                slice::from_raw_parts_mut(logits, logits_len as usize),
+            )
+        };
+        // two &mut to one cache would be UB, so refuse a repeated handle up front
+        if handles.iter().enumerate().any(|(i, h)| handles[..i].contains(h)) {
+            return Err(invalid("ar_decode got the same cache twice"));
+        }
+        let mut caches = handles
+            .iter()
+            // SAFETY: non-null handles from yue2_cache_create, distinct as checked above.
+            .map(|&h| unsafe { h.as_mut() }.ok_or_else(|| invalid("cache is null")))
+            .collect::<Result<Vec<_>>>()?;
+        engine.model.decode(&mut caches, tokens, logits_first as usize, logits)
     })
 }
 

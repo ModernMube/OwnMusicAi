@@ -23,16 +23,18 @@ internal sealed class TokenSampler
 
     /// <summary>
     /// abc = true draws score text ([0, EOD) + ABC_END), otherwise codec ids + MUSIC_END.
+    /// logits is the Protocol.Logits(abc) window, not the whole vocab.
     /// </summary>
-    public int Next(float[] logits, SamplingParams p, List<int> history, int step, bool abc)
+    public int Next(ReadOnlySpan<float> logits, SamplingParams p, List<int> history, int step, bool abc)
     {
         int _first = abc ? 0 : Protocol.CodecOffset;
         int _span = abc ? Protocol.Eod : Protocol.CodecSize;
         int _end = abc ? Protocol.AbcEnd : Protocol.MusicEnd;
+        int _base = Protocol.Logits(abc).First;
         int n = _span + 1;
 
-        Array.Copy(logits, _first, _keys, 0, _span);
-        _keys[_span] = step < p.MinTokens ? float.NegativeInfinity : logits[_end];
+        logits.Slice(_first - _base, _span).CopyTo(_keys);
+        _keys[_span] = step < p.MinTokens ? float.NegativeInfinity : logits[_end - _base];
 
         if (p.RepetitionPenalty != 1.0 && history.Count > 0)
         {

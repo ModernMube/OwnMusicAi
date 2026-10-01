@@ -76,11 +76,11 @@ fn main() -> Res<()> {
 
     let mut logits = vec![0f32; vocab];
     let mut cache = model.new_cache(prefix.len() + 8);
-    model.forward(&mut cache, &prefix, &mut logits)?;
+    model.forward(&mut cache, &prefix, 0, &mut logits)?;
     report("prefill logits", &logits, &expected_prefill, limit, &mut failures);
     println!("       argmax {} vs {}", argmax(&logits), argmax(&expected_prefill));
     for (i, token) in steps.iter().enumerate() {
-        model.forward(&mut cache, &[*token], &mut logits)?;
+        model.forward(&mut cache, &[*token], 0, &mut logits)?;
         report(&format!("decode step {} logits", i + 1), &logits, &expected_steps[i * vocab..(i + 1) * vocab], limit, &mut failures);
     }
 
@@ -88,23 +88,41 @@ fn main() -> Res<()> {
     let cut = prefix.len() / 2;
     let mut split: Cache = model.new_cache(4);
     let mut split_logits = vec![0f32; vocab];
-    model.forward(&mut split, &prefix[..cut], &mut split_logits)?;
-    model.forward(&mut split, &prefix[cut..], &mut split_logits)?;
+    model.forward(&mut split, &prefix[..cut], 0, &mut split_logits)?;
+    model.forward(&mut split, &prefix[cut..], 0, &mut split_logits)?;
     report("block prefill logits", &split_logits, &expected_prefill, limit, &mut failures);
 
     let clock = Instant::now();
     let mut warm = model.new_cache(64);
-    model.forward(&mut warm, &prefix, &mut logits)?;
+    model.forward(&mut warm, &prefix, 0, &mut logits)?;
     for token in steps.iter().cycle().take(20) {
-        model.forward(&mut warm, &[*token], &mut logits)?;
+        model.forward(&mut warm, &[*token], 0, &mut logits)?;
     }
     println!("       20 decode steps: {:.1} tok/s (incl. prefill)", 21.0 / clock.elapsed().as_secs_f32());
+
+    // a CFG-style pair (caches at different lengths) through one batched pass, codec window
+    // only, has to match the old way: one sequence at a time, full vocab
+    let (first, span) = (151852, 32769);
+    let mut expected = Vec::with_capacity(2 * span);
+    for ids in [&prefix[..], &prefix[..cut]] {
+        let mut single = model.new_cache(ids.len() + 1);
+        model.forward(&mut single, ids, 0, &mut logits)?;
+        model.forward(&mut single, &steps[..1], 0, &mut logits)?;
+        expected.extend_from_slice(&logits[first..first + span]);
+    }
+    let (mut pos, mut neg) = (model.new_cache(prefix.len() + 1), model.new_cache(cut + 1));
+    model.forward(&mut pos, &prefix, 0, &mut logits)?;
+    model.forward(&mut neg, &prefix[..cut], 0, &mut logits)?;
+    let mut batched = vec![0f32; 2 * span];
+    model.decode(&mut [&mut pos, &mut neg], &[steps[0]; 2], first, &mut batched)?;
+    report("batched cfg pair vs one by one", &batched, &expected, limit, &mut failures);
+    println!("       argmax {}/{} vs {}/{}", argmax(&batched[..span]), argmax(&batched[span..]), argmax(&expected[..span]), argmax(&expected[span..]));
 
     println!("NAR");
     let tokens: Vec<u32> = npy(reference, "nar_tokens")?;
     let state: Vec<f32> = npy(reference, "nar_state")?;
     let mut chunk = model.new_cache(tokens.len());
-    model.forward(&mut chunk, &tokens, &mut logits)?;
+    model.forward(&mut chunk, &tokens, 0, &mut logits)?;
     let mut velocity = vec![0f32; state.len()];
     for (t, name) in [(1.3f32, "nar_velocity"), (20.0, "nar_velocity_t20")] {
         let clock = Instant::now();
@@ -113,7 +131,7 @@ fn main() -> Res<()> {
         report(&format!("velocity t_logit={t}"), &velocity, &npy::<f32>(reference, name)?, limit, &mut failures);
         println!("       {elapsed:.2}s");
     }
-    drop((model, cache, split, warm, chunk));
+    drop((model, cache, split, warm, pos, neg, chunk));
 
     println!("VAE (f32)");
     let vae = VaeDecoder::load(Path::new(vae_dir), &device)?;

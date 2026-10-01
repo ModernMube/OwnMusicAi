@@ -48,15 +48,32 @@ internal sealed unsafe class Yue2Engine : IDisposable
     }
 
     /// <summary>
-    /// Appends tokens to the cache, last-position logits go to <paramref name="logits"/> (vocab sized).
+    /// Appends tokens to the cache. The last position's logits of ids firstLogit.. go to
+    /// <paramref name="logits"/>, as many as it holds.
     /// </summary>
-    public void Forward(KvCache cache, ReadOnlySpan<int> tokens, Span<float> logits)
+    public void Forward(KvCache cache, ReadOnlySpan<int> tokens, Span<float> logits, int firstLogit = 0)
     {
         fixed (int* t = tokens)
         fixed (float* l = logits)
         {
-            _check(Native.yue2_ar_forward(_handle, cache.Handle, (uint*)t, tokens.Length, l, logits.Length));
+            _check(Native.yue2_ar_forward(_handle, cache.Handle, (uint*)t, tokens.Length, firstLogit, l, logits.Length));
         }
+    }
+
+    /// <summary>
+    /// tokens[i] goes into caches[i], all in one pass - the CFG pair costs about one sequence.
+    /// logits gets a row per cache, each starting at id firstLogit.
+    /// </summary>
+    public void Decode(KvCache[] caches, ReadOnlySpan<int> tokens, Span<float> logits, int firstLogit)
+    {
+        IntPtr* _handles = stackalloc IntPtr[caches.Length];
+        for (int i = 0; i < caches.Length; i++) _handles[i] = caches[i].Handle.DangerousGetHandle();
+        fixed (int* t = tokens)
+        fixed (float* l = logits)
+        {
+            _check(Native.yue2_ar_decode(_handle, _handles, (uint*)t, caches.Length, firstLogit, l, logits.Length));
+        }
+        GC.KeepAlive(caches);
     }
 
     public void Velocity(KvCache prefix, ReadOnlySpan<float> latents, float tLogit, Span<float> velocity)

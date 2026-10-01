@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cache = model.new_cache(tokens.len() + 64);
     let clock = Instant::now();
     for block in tokens.chunks(1024) {
-        model.forward(&mut cache, block, &mut logits)?;
+        model.forward(&mut cache, block, 0, &mut logits)?;
     }
     println!("prefill {} tokens: {:.1}s", tokens.len(), clock.elapsed().as_secs_f32());
 
@@ -36,10 +36,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!("velocity finite: {}", velocity.iter().all(|v| v.is_finite()));
 
+    let tok = 151853 + 17;
     let clock = Instant::now();
     for _ in 0..20 {
-        model.forward(&mut cache, &[151853 + 17], &mut logits)?;
+        model.forward(&mut cache, &[tok], 0, &mut logits)?;
     }
     println!("decode at {} context: {:.1} tok/s", cache.len(), 20.0 / clock.elapsed().as_secs_f32());
+
+    // music phase: codec window only, and with CFG the negative branch rides along in one pass
+    let (first, span) = (151852, 32769);
+    let mut row = vec![0f32; span];
+    let clock = Instant::now();
+    for _ in 0..20 {
+        model.decode(&mut [&mut cache], &[tok], first, &mut row)?;
+    }
+    println!("decode, codec window: {:.1} tok/s", 20.0 / clock.elapsed().as_secs_f32());
+
+    let mut negative = model.new_cache(prefix + 64);
+    model.forward(&mut negative, &tokens[..prefix], 0, &mut logits)?;
+    let clock = Instant::now();
+    for _ in 0..20 {
+        model.forward(&mut cache, &[tok], 0, &mut logits)?;
+        model.forward(&mut negative, &[tok], 0, &mut logits)?;
+    }
+    println!("cfg, two passes, full vocab: {:.1} tok/s", 20.0 / clock.elapsed().as_secs_f32());
+
+    let mut pair = vec![0f32; 2 * span];
+    let clock = Instant::now();
+    for _ in 0..20 {
+        model.decode(&mut [&mut cache, &mut negative], &[tok, tok], first, &mut pair)?;
+    }
+    println!("cfg, batched pair, codec window: {:.1} tok/s", 20.0 / clock.elapsed().as_secs_f32());
     Ok(())
 }

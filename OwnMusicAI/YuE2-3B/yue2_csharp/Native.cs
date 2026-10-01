@@ -62,7 +62,10 @@ internal static unsafe class Native
     [DllImport(Lib)] public static extern int yue2_cache_len(CacheHandle cache);
 
     [DllImport(Lib)]
-    public static extern int yue2_ar_forward(EngineHandle engine, CacheHandle cache, uint* tokens, int count, float* logits, int logitsLen);
+    public static extern int yue2_ar_forward(EngineHandle engine, CacheHandle cache, uint* tokens, int count, int logitsFirst, float* logits, int logitsLen);
+
+    [DllImport(Lib)]
+    public static extern int yue2_ar_decode(EngineHandle engine, IntPtr* caches, uint* tokens, int count, int logitsFirst, float* logits, int logitsLen);
 
     [DllImport(Lib)]
     public static extern int yue2_nar_velocity(EngineHandle engine, CacheHandle prefix, float* latents, int frames, float tLogit, float* velocity);

@@ -175,10 +175,7 @@ internal sealed class SongGenerator
     {
         var _out = new List<int>();
         var _sampler = new TokenSampler(_rngSeed(seed));
-        int _vocab = engine.Info.VocabSize;
-        var _cond = new float[_vocab];
-        var _uncond = new float[_vocab];
-        var _mixed = new float[_vocab];
+        var (_first, _span) = Protocol.Logits(abc);
         int _end = abc ? Protocol.AbcEnd : Protocol.MusicEnd;
         int _max = Math.Min(p.MaxTokens, Protocol.Context - prefix.Count);
         bool _ended = false;
@@ -187,43 +184,47 @@ internal sealed class SongGenerator
         using (var _pos = engine.NewCache(prefix.Count + _max))
         using (var _neg = engine.NewCache(negative == null ? 1 : negative.Count + _max))
         {
-            _prefill(engine, _pos, prefix, _cond);
-            if (negative != null) _prefill(engine, _neg, negative, _uncond);
+            //cond row first, the CFG negative's row right after it
+            var _caches = negative == null ? new[] { _pos } : new[] { _pos, _neg };
+            var _logits = new float[_caches.Length * _span];
+            var _mixed = new float[_span];
+            var _ids = new int[_caches.Length];
+
+            _prefill(engine, _pos, prefix, _logits.AsSpan(0, _span), _first);
+            if (negative != null) _prefill(engine, _neg, negative, _logits.AsSpan(_span), _first);
             Console.WriteLine($"  {label}: prefill {prefix.Count} tokens in {_clock.Elapsed.TotalSeconds:F1}s");
             var _decode = Stopwatch.StartNew();
 
-            var _one = new int[1];
             for (int step = 0; step < _max; step++)
             {
-                var _logits = _cond;
+                ReadOnlySpan<float> _next = _logits.AsSpan(0, _span);
                 if (negative != null)
                 {
                     float _scale = (float)cfgScale;
-                    for (int i = 0; i < _vocab; i++) _mixed[i] = _uncond[i] + _scale * (_cond[i] - _uncond[i]);
-                    _logits = _mixed;
+                    for (int i = 0; i < _span; i++) _mixed[i] = _logits[_span + i] + _scale * (_logits[i] - _logits[_span + i]);
+                    _next = _mixed;
                 }
 
-                int _token = _sampler.Next(_logits, p, _out, step, abc);
+                int _token = _sampler.Next(_next, p, _out, step, abc);
                 if (_token == _end) { _ended = true; break; }
                 _out.Add(_token);
                 if (_out.Count % 25 == 0)
                     Console.Write($"\r  {label}: {_out.Count}/{_max} tokens, {_out.Count / _decode.Elapsed.TotalSeconds:F1} tok/s");
                 if (step + 1 == _max) break;
 
-                _one[0] = _token;
-                engine.Forward(_pos, _one, _cond);
-                if (negative != null) engine.Forward(_neg, _one, _uncond);
+                Array.Fill(_ids, _token);
+                engine.Decode(_caches, _ids, _logits, _first);
             }
         }
         Console.WriteLine($"\r  {label}: {_out.Count} tokens in {_clock.Elapsed.TotalSeconds:F1}s{(_ended ? "" : " (hit the token cap)")}          ");
         return _out;
     }
 
-    static void _prefill(Yue2Engine engine, KvCache cache, List<int> tokens, float[] logits)
+    static void _prefill(Yue2Engine engine, KvCache cache, List<int> tokens, Span<float> logits, int firstLogit)
     {
         var _ids = tokens.ToArray();
         for (int s = 0; s < _ids.Length; s += 1024)
-            engine.Forward(cache, _ids.AsSpan(s, Math.Min(1024, _ids.Length - s)), logits);
+            engine.Forward(cache, _ids.AsSpan(s, Math.Min(1024, _ids.Length - s)), logits, firstLogit);
     }
 
     void _save(SongState state)

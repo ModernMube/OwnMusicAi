@@ -3,7 +3,7 @@ use std::path::Path;
 use candle_core::{D, DType, Device, Module, Tensor};
 use candle_nn::{Embedding, Linear, VarBuilder, kv_cache::KvCache, ops, rotary_emb::rope};
 
-use crate::{EngineError, Result, Yue2Config, config};
+use crate::{EngineError, Result, Yue2Config, config, gemv};
 
 /// Query rows per attention block on the non-Metal path, keeps the score matrix bounded.
 const QUERY_BLOCK: usize = 512;
@@ -25,24 +25,38 @@ impl RmsNorm {
     }
 }
 
+/// Bias-free projection; a CFG decode's 2 rows go through [`gemv::matmul_t`] in one weight pass.
+struct Proj(Tensor);
+
+impl Proj {
+    fn load(vb: VarBuilder, input: usize, output: usize) -> Result<Self> {
+        Ok(Self(vb.get((output, input), "weight")?))
+    }
+
+    fn forward(&self, x: &Tensor) -> Result<Tensor> {
+        let (b, t, k) = x.dims3()?;
+        Ok(gemv::matmul_t(&x.reshape((b * t, k))?, &self.0)?.reshape((b, t, ()))?)
+    }
+}
+
 struct Mlp {
-    gate: Linear,
-    up: Linear,
-    down: Linear,
+    gate: Proj,
+    up: Proj,
+    down: Proj,
 }
 
 impl Mlp {
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
         let gated = (self.gate.forward(x)?.silu()? * self.up.forward(x)?)?;
-        Ok(self.down.forward(&gated)?)
+        self.down.forward(&gated)
     }
 }
 
 struct Attention {
-    q: Linear,
-    k: Linear,
-    v: Linear,
-    o: Linear,
+    q: Proj,
+    k: Proj,
+    v: Proj,
+    o: Proj,
     q_norm: RmsNorm,
     k_norm: RmsNorm,
     heads: usize,
@@ -54,7 +68,7 @@ impl Attention {
     /// Projects, QK-normalizes and ropes; q is [b, heads, t, hd], k/v [b, kv_heads, t, hd].
     fn qkv(&self, x: &Tensor, cos: &Tensor, sin: &Tensor) -> Result<(Tensor, Tensor, Tensor)> {
         let (b, t, _) = x.dims3()?;
-        let split = |proj: &Linear, heads: usize| proj.forward(x)?.reshape((b, t, heads, self.head_dim));
+        let split = |proj: &Proj, heads: usize| -> Result<Tensor> { Ok(proj.forward(x)?.reshape((b, t, heads, self.head_dim))?) };
         let q = self.q_norm.forward(&split(&self.q, self.heads)?)?.transpose(1, 2)?.contiguous()?;
         let k = self.k_norm.forward(&split(&self.k, self.kv_heads)?)?.transpose(1, 2)?.contiguous()?;
         let v = split(&self.v, self.kv_heads)?.transpose(1, 2)?.contiguous()?;
@@ -63,7 +77,7 @@ impl Attention {
 
     fn out(&self, attended: &Tensor) -> Result<Tensor> {
         let (b, _, t, _) = attended.dims4()?;
-        Ok(self.o.forward(&attended.transpose(1, 2)?.reshape((b, t, ()))?)?)
+        self.o.forward(&attended.transpose(1, 2)?.reshape((b, t, ()))?)
     }
 }
 
@@ -78,7 +92,7 @@ struct Block {
 impl Block {
     fn load(vb: &VarBuilder, cfg: &Yue2Config, [input_norm, attn, mlp_norm, mlp]: [&str; 4]) -> Result<Self> {
         let (h, hd) = (cfg.hidden_size, cfg.head_dim);
-        let lin = |name: &str, i, o| candle_nn::linear_no_bias(i, o, vb.pp(attn).pp(name));
+        let lin = |name: &str, i, o| Proj::load(vb.pp(attn).pp(name), i, o);
         let mlp_vb = vb.pp(mlp);
         Ok(Self {
             input_norm: RmsNorm::load(vb.pp(input_norm), h, cfg.rms_norm_eps)?,
@@ -95,9 +109,9 @@ impl Block {
             },
             mlp_norm: RmsNorm::load(vb.pp(mlp_norm), h, cfg.rms_norm_eps)?,
             mlp: Mlp {
-                gate: candle_nn::linear_no_bias(h, cfg.intermediate_size, mlp_vb.pp("gate_proj"))?,
-                up: candle_nn::linear_no_bias(h, cfg.intermediate_size, mlp_vb.pp("up_proj"))?,
-                down: candle_nn::linear_no_bias(cfg.intermediate_size, h, mlp_vb.pp("down_proj"))?,
+                gate: Proj::load(mlp_vb.pp("gate_proj"), h, cfg.intermediate_size)?,
+                up: Proj::load(mlp_vb.pp("up_proj"), h, cfg.intermediate_size)?,
+                down: Proj::load(mlp_vb.pp("down_proj"), cfg.intermediate_size, h)?,
             },
         })
     }
@@ -216,10 +230,11 @@ impl Yue2Model {
     }
 
     /// Feeds `tokens` through the AR path (growing `cache`) and writes the last position's
-    /// logits into `logits`. Prefill in several calls if you want - positions continue.
-    pub fn forward(&self, cache: &mut Cache, tokens: &[u32], logits: &mut [f32]) -> Result<()> {
-        if tokens.is_empty() || logits.len() != self.cfg.vocab_size {
-            return Err(EngineError::Invalid("need tokens and a vocab-sized logits buffer".into()));
+    /// logits of ids `first..first + logits.len()` into `logits`. Prefill in several calls if
+    /// you want - positions continue.
+    pub fn forward(&self, cache: &mut Cache, tokens: &[u32], first: usize, logits: &mut [f32]) -> Result<()> {
+        if tokens.is_empty() {
+            return Err(EngineError::Invalid("forward needs at least one token".into()));
         }
         let n = tokens.len();
         let (cos, sin) = self.rope_at(cache.len, n)?;
@@ -233,10 +248,49 @@ impl Yue2Model {
             x = (&x + block.mlp.forward(&block.mlp_norm.forward(&x)?)?)?;
         }
         cache.len += n;
+        self.head(&x.narrow(1, n - 1, 1)?, first, logits)
+    }
 
-        let last = self.norm.forward(&x.narrow(1, n - 1, 1)?)?;
-        let values = self.lm_head.forward(&last)?.flatten_all()?.to_dtype(DType::F32)?.to_vec1::<f32>()?;
-        logits.copy_from_slice(&values);
+    /// One token into each cache in a single pass, so the weights are read once for the whole
+    /// batch - a CFG pair costs about as much as one sequence. Attention still runs cache by
+    /// cache, they can sit at different lengths. `logits` gets one `first..` row per cache.
+    pub fn decode(&self, caches: &mut [&mut Cache], tokens: &[u32], first: usize, logits: &mut [f32]) -> Result<()> {
+        let n = caches.len();
+        if n == 0 || tokens.len() != n || logits.len() % n != 0 {
+            return Err(EngineError::Invalid("decode needs one token and one logits row per cache".into()));
+        }
+        let (cos, sin): (Vec<_>, Vec<_>) =
+            caches.iter().map(|c| self.rope_at(c.len, 1)).collect::<Result<Vec<_>>>()?.into_iter().unzip();
+        let (cos, sin) = (Tensor::stack(&cos, 0)?, Tensor::stack(&sin, 0)?);
+        let mut x = self.embed.forward(&Tensor::new(tokens, &self.device)?.unsqueeze(1)?)?;
+
+        for (i, layer) in self.layers.iter().enumerate() {
+            let block = &layer.ar;
+            let (q, k, v) = block.attn.qkv(&block.input_norm.forward(&x)?, &cos, &sin)?;
+            let mut rows = Vec::with_capacity(n);
+            for (row, cache) in caches.iter_mut().enumerate() {
+                let (k, v) = cache.layers[i].append(&k.narrow(0, row, 1)?, &v.narrow(0, row, 1)?)?;
+                rows.push(attend(&q.narrow(0, row, 1)?, &k, &v, true)?);
+            }
+            x = (x + block.attn.out(&Tensor::cat(&rows, 0)?)?)?;
+            x = (&x + block.mlp.forward(&block.mlp_norm.forward(&x)?)?)?;
+        }
+        for cache in caches.iter_mut() {
+            cache.len += 1;
+        }
+        self.head(&x, first, logits)
+    }
+
+    /// Final norm + only the lm_head rows the sampler reads: the music phase needs 32769 of the
+    /// ~185k ids, no point pulling the rest through memory every token. `x` is [b, 1, hidden].
+    fn head(&self, x: &Tensor, first: usize, logits: &mut [f32]) -> Result<()> {
+        let len = logits.len() / x.dim(0)?;
+        if len == 0 || first + len > self.cfg.vocab_size {
+            return Err(EngineError::Invalid(format!("logits window {first}+{len} is outside the vocab")));
+        }
+        let weight = self.lm_head.weight().narrow(0, first, len)?;
+        let values = gemv::matmul_t(&self.norm.forward(x)?.squeeze(1)?, &weight)?;
+        logits.copy_from_slice(&values.flatten_all()?.to_dtype(DType::F32)?.to_vec1::<f32>()?);
         Ok(())
     }
 

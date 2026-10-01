@@ -36,6 +36,12 @@ internal static class Protocol
 
     public static double DefaultCfg(string cot) => cot == "off" ? 1.01 : 1.0;
 
+    /// <summary>
+    /// Vocab window the sampler gets back from the engine: [0, ABC_END] for the score,
+    /// MUSIC_END + the codec block (they sit next to each other) for music.
+    /// </summary>
+    public static (int First, int Count) Logits(bool abc) => abc ? (0, AbcEnd + 1) : (MusicEnd, CodecSize + 1);
+
     public static string PromptText(string cot, string style, string lyrics) =>
         $"{Instructions[cot]}\n[Tags]\n{style}\n[Lyrics]\n{lyrics}\n";
 }
