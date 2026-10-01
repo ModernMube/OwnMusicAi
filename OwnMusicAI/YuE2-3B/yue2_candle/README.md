@@ -61,6 +61,7 @@ From `examples/bench.rs`:
 | Decoding at a 5000-token context, full vocab / codec window | 36.0 / 41.0 tokens/s |
 | CFG pair at a 5000-token context, two passes / batched | 18.5 / 30.7 tokens/s |
 | NAR velocity, 5000 frames (200 s of audio) + 8000-token prefix | 8.05 s (64 evaluations ≈ 8.6 min) |
+| VAE decoding, 20 s of audio (tiles of 256 frames) | 12.8 s → 1.6 s |
 
 ## C ABI
 
@@ -83,4 +84,7 @@ Every call returns 0 on success and -1 on failure. The error message can be read
 - **Small-batch projections on Metal:** Candle runs a gemv for one row, but from two rows on it switches to a gemm that streams the weights at well under half the bandwidth. `src/gemv.rs` adds a kernel that reads each weight row once for 2-4 rows, which is what makes the batched CFG decode pay off.
 - **Logit window:** the sampler only reads part of the vocab (the music phase 32769 of 184704 ids), so only those lm_head rows are computed.
 - **CPU and CUDA attention:** computed in 512-query blocks, so even a song-long NAR chunk never builds the full attention matrix.
-- **VAE:** weight norm is baked into the weights at load time, the SnakeBeta parameters are pre-exponentiated.
+- **VAE:** weight norm is baked into the weights at load time, the SnakeBeta parameters are pre-exponentiated. On Metal three Candle paths were slow, together ~8x on decoding:
+  - `conv_transpose1d` only takes the fast col2im route at padding 0, so it runs unpadded and the `padding` samples are trimmed off both ends afterwards (the same result).
+  - `conv1d` goes through an im2col kernel ~15x slower than the matmul behind it; stride-1 convs instead stack the k dilated taps on the channel axis and run one matmul against a tap-major weight.
+  - SnakeBeta was five kernels, two of them slow broadcasts; `src/snake.rs` fuses it into one pass.

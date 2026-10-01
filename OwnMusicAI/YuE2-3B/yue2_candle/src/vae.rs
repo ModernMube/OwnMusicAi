@@ -3,7 +3,7 @@ use std::path::Path;
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 
-use crate::{EngineError, Result, VaeConfig, config};
+use crate::{EngineError, Result, VaeConfig, config, snake};
 
 /// SnakeBeta with the log-scale params already exponentiated.
 struct Snake {
@@ -23,13 +23,15 @@ impl Snake {
     }
 
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
-        Ok((x + x.broadcast_mul(&self.alpha)?.sin()?.sqr()?.broadcast_mul(&self.inv_beta)?)?)
+        snake::snake(x, &self.alpha, &self.inv_beta)
     }
 }
 
 /// Weight-normed Conv1d / ConvTranspose1d, g * v / ||v|| folded at load.
 struct Conv {
     weight: Tensor,
+    /// Stride-1 conv1d weight laid out tap-major, [c_out, k * c_in] - see [`Conv::taps_matmul`].
+    matrix: Option<Tensor>,
     bias: Option<Tensor>,
     padding: usize,
     stride: usize,
@@ -43,12 +45,36 @@ impl Conv {
         let v = vb.get_unchecked("weight_v")?;
         let norm = v.sqr()?.sum_keepdim((1, 2))?.sqrt()?;
         let bias = vb.get_unchecked("bias").ok().map(|b| b.reshape((1, (), 1))).transpose()?;
-        Ok(Self { weight: v.broadcast_mul(&g.broadcast_div(&norm)?)?, bias, padding, stride, dilation, transpose })
+        let weight = v.broadcast_mul(&g.broadcast_div(&norm)?)?;
+        let matrix = (!transpose && stride == 1)
+            .then(|| weight.permute((0, 2, 1))?.contiguous()?.flatten_from(1)?.unsqueeze(0))
+            .transpose()?;
+        Ok(Self { weight, matrix, bias, padding, stride, dilation, transpose })
+    }
+
+    /// conv1d as a single matmul: the k dilated taps of the padded input stacked on the channel
+    /// axis, [k * c_in, L], times the tap-major weight. Candle's Metal im2col is ~15x slower
+    /// than the matmul itself and leaves a transpose behind; this lands in [c_out, L] directly.
+    fn taps_matmul(&self, x: &Tensor, matrix: &Tensor) -> Result<Tensor> {
+        let k = self.weight.dim(2)?;
+        if k == 1 {
+            return Ok(matrix.matmul(x)?);
+        }
+        let x = x.pad_with_zeros(2, self.padding, self.padding)?;
+        let len = x.dim(2)? - self.dilation * (k - 1);
+        let taps = (0..k).map(|j| x.narrow(2, j * self.dilation, len)).collect::<candle_core::Result<Vec<_>>>()?;
+        Ok(matrix.matmul(&Tensor::cat(&taps, 1)?)?)
     }
 
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
         let y = if self.transpose {
-            x.conv_transpose1d(&self.weight, self.padding, 0, self.stride, self.dilation, 1)?
+            // candle only takes its fast col2im path at padding 0; padding p just trims p
+            // samples off both ends, so we trim ourselves
+            let full = x.conv_transpose1d(&self.weight, 0, 0, self.stride, self.dilation, 1)?;
+            let len = full.dim(2)? - 2 * self.padding;
+            full.narrow(2, self.padding, len)?
+        } else if let Some(matrix) = &self.matrix {
+            self.taps_matmul(x, matrix)?
         } else {
             x.conv1d(&self.weight, self.padding, self.stride, self.dilation, 1)?
         };

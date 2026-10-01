@@ -7,6 +7,7 @@ mod error;
 pub mod ffi;
 mod gemv;
 mod model;
+mod snake;
 mod vae;
 
 use candle_core::{DType, Device};
