@@ -1,0 +1,129 @@
+name: Build & Package
+
+# Packaging only makes sense for a release, so a push to master doesn't start it.
+# workflow_dispatch is there for a trial run without a tag.
+# The Rust engines are not built here: publish takes the binaries build-native.yml committed under runtimes/,
+# so tag a commit only after that workflow pushed its "update native engine binaries" commit.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: OwnMusicAI
+  PROJECT: OwnMusicAI/src/OwnMusicAI.App/OwnMusicAI.App.csproj
+  MAC_ASSETS: OwnMusicAI/src/OwnMusicAI.App/Assets/macOS
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win-x64
+            os: windows-latest
+          - target: win-arm64
+            os: windows-latest
+          - target: osx-arm64
+            os: macos-14
+          - target: linux-x64
+            os: ubuntu-latest
+          - target: linux-arm64
+            os: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+    name: Build ${{ matrix.target }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # ── Publish ──────────────────────────────────────────
+      # OwnMusicAI.Engine is RID-agnostic, so -r never reaches it and NativeEngines.targets would pick
+      # the runner's own engines (x64 ones in an arm64 package). NativeRid is a global property, it does.
+      - name: dotnet publish
+        shell: bash
+        run: >
+          dotnet publish $PROJECT
+          -c Release
+          -r ${{ matrix.target }}
+          -p:NativeRid=${{ matrix.target }}
+          --self-contained true
+          -p:PublishSingleFile=true
+          -o ./publish/${{ matrix.target }}
+
+      # ── macOS: .app bundle ───────────────────────────────
+      - name: Create macOS .app bundle
+        if: startsWith(matrix.target, 'osx')
+        run: |
+          APP="publish/$APP_NAME.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+
+          cp -R publish/${{ matrix.target }}/* "$APP/Contents/MacOS/"
+          cp "$MAC_ASSETS/Info.plist" "$APP/Contents/"
+          if [ -f "$MAC_ASSETS/AppIcon.icns" ]; then
+            cp "$MAC_ASSETS/AppIcon.icns" "$APP/Contents/Resources/"
+          fi
+
+          # a tag like v1.2.3 becomes the bundle version
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+          fi
+
+          chmod +x "$APP/Contents/MacOS/$APP_NAME"
+          rm -rf publish/${{ matrix.target }}
+
+      # ── macOS: ad-hoc code signing ───────────────────────
+      - name: Sign macOS .app (ad-hoc)
+        if: startsWith(matrix.target, 'osx')
+        run: |
+          codesign --force --deep --sign - \
+            --entitlements "$MAC_ASSETS/Entitlements.plist" \
+            --options runtime \
+            "publish/$APP_NAME.app"
+
+      # ── Packaging ────────────────────────────────────────
+      - name: Package (zip)
+        if: runner.os != 'Windows'
+        run: |
+          cd publish
+          if [ -d "$APP_NAME.app" ]; then
+            zip -r -y ../$APP_NAME-${{ matrix.target }}.zip "$APP_NAME.app"
+          else
+            zip -r ../$APP_NAME-${{ matrix.target }}.zip ${{ matrix.target }}
+          fi
+
+      # bash on the Windows runner has no zip, PowerShell does the job
+      - name: Package (zip, Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >
+          Compress-Archive
+          -Path publish/${{ matrix.target }}
+          -DestinationPath ${{ env.APP_NAME }}-${{ matrix.target }}.zip
+
+      # ── Upload ───────────────────────────────────────────
+      # the zip is compressed already, compression-level 0 skips a second pass
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ matrix.target }}
+          path: ${{ env.APP_NAME }}-${{ matrix.target }}.zip
+          retention-days: 3
+          compression-level: 0
+
+      # on a tag it goes next to the release, that doesn't eat the Actions storage quota
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APP_NAME }}-${{ matrix.target }}.zip
